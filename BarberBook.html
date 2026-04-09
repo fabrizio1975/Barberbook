@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BarberBook">
+<title>BarberBook</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body {
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  background: #f0f0eb; color: #222;
+  min-height: 100vh; overscroll-behavior: none;
+}
+
+/* WEEK BAR */
+#weekBar {
+  display: flex; align-items: center; justify-content: center;
+  gap: 3px; padding: 8px 6px;
+  background: #fff; border-bottom: 2px solid #ddd;
+  position: sticky; top: 0; z-index: 20;
+}
+.arrowBtn {
+  background: none; border: 1px solid #ccc; border-radius: 6px;
+  font-size: 22px; width: 32px; height: 32px; cursor: pointer;
+  flex-shrink: 0; color: #444; display: flex; align-items: center; justify-content: center;
+}
+#weekDays { display: flex; gap: 3px; }
+.dayPill {
+  display: flex; flex-direction: column; align-items: center;
+  background: none; border: 1px solid #ddd; border-radius: 8px;
+  padding: 3px 5px; cursor: pointer; min-width: 32px; flex-shrink: 0;
+}
+.dayPill.selected { background: #2a7a4b; border-color: #2a7a4b; }
+.dayPill.today:not(.selected) { background: #e8f5ee; border-color: #2a7a4b; }
+.dayShort { font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+.dayPill.selected .dayShort { color: #cef; }
+.dayNum { font-size: 14px; font-weight: 700; color: #222; }
+.dayPill.selected .dayNum { color: #fff; }
+.daydot { width: 5px; height: 5px; border-radius: 50%; background: #2a7a4b; margin-top: 1px; }
+.dayPill.selected .daydot { background: #fff; }
+
+/* TITLE ROW */
+#titleRow {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 12px; background: #fff; border-bottom: 2px solid #444;
+}
+#titleText { font-size: 17px; font-weight: 800; }
+#counts { display: flex; gap: 6px; }
+.countBadge {
+  font-size: 11px; color: #555; background: #f0f0eb;
+  padding: 3px 8px; border-radius: 20px; border: 1px solid #ddd; white-space: nowrap;
+}
+
+/* TABLE */
+#tableWrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+thead th {
+  padding: 10px 4px; background: #e0e0e0;
+  text-align: center; font-size: 15px; font-weight: 800;
+  border-bottom: 2px solid #555; position: sticky; top: 54px; z-index: 10;
+}
+th.thTime { background: #d0d0d0; width: 18%; }
+th.thFab { border-right: 2px solid #555; width: 41%; }
+th.thGia { border-left: 2px solid #555; width: 41%; }
+td { padding: 0; vertical-align: middle; border-bottom: 1px solid #ccc; height: 46px; cursor: pointer; }
+td.tdTime {
+  text-align: center; font-size: 13px; font-weight: 700;
+  background: #e8e8e8; border-left: 1px solid #bbb; border-right: 1px solid #bbb;
+  cursor: default;
+}
+td.tdFab { border-right: 2px solid #bbb; }
+td.tdGia { border-left: 2px solid #bbb; }
+tr.rowEven td { background: #fafafa; }
+tr.rowEven td.tdTime { background: #e2e2e2; }
+.apptCard {
+  font-weight: 700; font-size: 13px; padding: 6px 5px; border-radius: 4px;
+  margin: 2px 3px; text-align: center; overflow: hidden;
+}
+.apptFab { background: #d4edda; color: #155724; }
+.apptGia { background: #cce5ff; color: #004085; }
+.apptNote { font-weight: 400; font-size: 10px; color: #555; display: block; }
+.emptyCell { color: #ccc; font-size: 22px; text-align: center; }
+.breakRow td {
+  text-align: center; padding: 7px;
+  font-size: 11px; color: #888; letter-spacing: 2px; text-transform: uppercase;
+  background: #efefea !important;
+  border-top: 2px solid #ccc; border-bottom: 2px solid #ccc; cursor: default;
+}
+
+/* MODAL */
+#overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+  align-items: flex-end; justify-content: center; z-index: 100;
+}
+#overlay.open { display: flex; }
+#modal {
+  background: #fff; border-radius: 18px 18px 0 0; padding: 20px;
+  width: 100%; max-width: 480px;
+  box-shadow: 0 -4px 30px rgba(0,0,0,0.2);
+  max-height: 92vh; overflow-y: auto;
+  padding-bottom: 30px;
+}
+.modalHandle { width: 40px; height: 4px; background: #ddd; border-radius: 2px; margin: 0 auto 16px; }
+.modalTop { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.modalTitle { font-size: 18px; font-weight: 800; }
+.xBtn { background: none; border: none; font-size: 22px; cursor: pointer; color: #aaa; }
+.mRow { margin-bottom: 14px; }
+.mLabel { display: block; font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+.mInput {
+  width: 100%; border: 1.5px solid #e0e0e0; border-radius: 10px;
+  padding: 11px 13px; font-size: 16px; font-family: inherit; outline: none;
+  background: #fafafa;
+}
+.mInput:focus { border-color: #2a7a4b; background: #fff; }
+.segmented { display: flex; gap: 8px; }
+.segBtn {
+  flex: 1; padding: 11px; border: 1.5px solid #e0e0e0; border-radius: 10px;
+  background: #fafafa; cursor: pointer; font-size: 15px; font-weight: 700; font-family: inherit;
+}
+.segBtn.active { background: #2a7a4b; color: #fff; border-color: #2a7a4b; }
+.mActions { display: flex; gap: 8px; margin-top: 20px; }
+.saveBtn {
+  flex: 1; background: #2a7a4b; color: #fff; border: none;
+  border-radius: 12px; padding: 14px; font-size: 16px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+}
+.cancelBtn {
+  background: #f0f0f0; color: #444; border: none;
+  border-radius: 12px; padding: 14px 18px; font-size: 15px;
+  cursor: pointer; font-family: inherit;
+}
+.delBtn {
+  background: #fff0f0; color: #c0392b; border: 1.5px solid #f5c6c6;
+  border-radius: 12px; padding: 14px 14px; font-size: 15px;
+  cursor: pointer; font-family: inherit;
+}
+
+/* TOAST */
+#toast {
+  display: none; position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+  background: #2a7a4b; color: #fff; border-radius: 12px;
+  padding: 12px 26px; font-size: 14px; font-weight: 700;
+  z-index: 300; box-shadow: 0 4px 20px rgba(0,0,0,0.25); white-space: nowrap;
+}
+#toast.show { display: block; }
+#toast.err { background: #c0392b; }
+</style>
+</head>
+<body>
+
+<div id="weekBar">
+  <button class="arrowBtn" onclick="shiftWeek(-7)">‹</button>
+  <div id="weekDays"></div>
+  <button class="arrowBtn" onclick="shiftWeek(7)">›</button>
+</div>
+
+<div id="titleRow">
+  <span id="titleText"></span>
+  <div id="counts"></div>
+</div>
+
+<div id="tableWrap">
+  <table>
+    <thead>
+      <tr>
+        <th class="thFab">Fabrizio</th>
+        <th class="thTime">Ora</th>
+        <th class="thGia">Gianluca</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<!-- MODAL -->
+<div id="overlay" onclick="closeModal()">
+  <div id="modal" onclick="event.stopPropagation()">
+    <div class="modalHandle"></div>
+    <div class="modalTop">
+      <span class="modalTitle" id="modalTitle">Nuovo Appuntamento</span>
+      <button class="xBtn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="mRow">
+      <label class="mLabel">Barbiere</label>
+      <div class="segmented">
+        <button class="segBtn" id="btnFab" onclick="selectBarber('fabrizio')">Fabrizio</button>
+        <button class="segBtn" id="btnGia" onclick="selectBarber('gianluca')">Gianluca</button>
+      </div>
+    </div>
+    <div class="mRow">
+      <label class="mLabel">Data</label>
+      <input class="mInput" type="date" id="fDate">
+    </div>
+    <div class="mRow">
+      <label class="mLabel">Orario</label>
+      <select class="mInput" id="fTime"></select>
+    </div>
+    <div class="mRow">
+      <label class="mLabel">Nome cliente *</label>
+      <input class="mInput" type="text" id="fName" placeholder="Es. Mario Rossi" autocomplete="off">
+    </div>
+    <div class="mRow">
+      <label class="mLabel">Note (opzionale)</label>
+      <input class="mInput" type="text" id="fNote" placeholder="Es. taglio + barba" autocomplete="off">
+    </div>
+    <div class="mActions">
+      <button class="delBtn" id="delBtn" onclick="deleteAppt()" style="display:none">🗑</button>
+      <button class="cancelBtn" onclick="closeModal()">Annulla</button>
+      <button class="saveBtn" onclick="saveAppt()">Salva</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const STORAGE_KEY = "barber_v4";
+const DAYS_LONG   = ["Domenica","Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato"];
+const MONTHS      = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
+const DAYS_SHORT  = ["Dom","Lun","Mar","Mer","Gio","Ven","Sab"];
+
+/* Genera slot 9:00-13:00 e 14:30-18:30 ogni 30 min */
+function genSlots(){
+  const s=[];
+  function add(sh,sm,eh,em){
+    let h=sh,m=sm;
+    while(h<eh||(h===eh&&m<=em)){
+      s.push(String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'));
+      m+=30; if(m>=60){m-=60;h++;}
+    }
+  }
+  add(9,0,13,0);
+  add(14,30,18,30);
+  return s;
+}
+const SLOTS = genSlots();
+
+function dateKey(d){ return d.toISOString().split('T')[0]; }
+function todayKey(){ return dateKey(new Date()); }
+
+/* STORAGE */
+function loadData(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'); }catch{return{};} }
+function saveData(d){ try{ localStorage.setItem(STORAGE_KEY,JSON.stringify(d)); }catch(e){ alert('Errore salvataggio: '+e); } }
+
+let appts = loadData();
+let selectedDate = todayKey();
+let weekBase = new Date();
+let editingId = null;
+let currentBarber = 'fabrizio';
+
+/* ── SETTIMANA ── */
+function getWeekDates(base){
+  const d=new Date(base);
+  const mon=new Date(d);
+  mon.setDate(d.getDate()-((d.getDay()+6)%7));
+  return Array.from({length:7},(_,i)=>{ const dd=new Date(mon); dd.setDate(mon.getDate()+i); return dd; });
+}
+
+function shiftWeek(days){ weekBase.setDate(weekBase.getDate()+days); renderAll(); }
+
+function renderWeek(){
+  const today=todayKey();
+  const dates=getWeekDates(weekBase);
+  const wrap=document.getElementById('weekDays');
+  wrap.innerHTML='';
+  dates.forEach(d=>{
+    const k=dateKey(d);
+    const cnt=(appts[k]||[]).length;
+    const btn=document.createElement('button');
+    btn.className='dayPill'+(k===selectedDate?' selected':'')+(k===today&&k!==selectedDate?' today':'');
+    btn.innerHTML=
+      '<span class="dayShort">'+DAYS_SHORT[d.getDay()]+'</span>'+
+      '<span class="dayNum">'+d.getDate()+'</span>'+
+      (cnt>0?'<span class="daydot"></span>':'');
+    btn.onclick=()=>{ selectedDate=k; renderAll(); };
+    wrap.appendChild(btn);
+  });
+}
+
+/* ── TABELLA ── */
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function renderTable(){
+  const day=appts[selectedDate]||[];
+  const fabN=day.filter(a=>a.barber==='fabrizio').length;
+  const giaN=day.filter(a=>a.barber==='gianluca').length;
+
+  const d=new Date(selectedDate+'T12:00:00');
+  document.getElementById('titleText').textContent=
+    DAYS_LONG[d.getDay()]+' '+d.getDate()+' '+MONTHS[d.getMonth()];
+  document.getElementById('counts').innerHTML=
+    '<span class="countBadge">Fabrizio: <b>'+fabN+'</b></span>'+
+    '<span class="countBadge">Gianluca: <b>'+giaN+'</b></span>';
+
+  const tbody=document.getElementById('tbody');
+  tbody.innerHTML='';
+
+  SLOTS.forEach((slot,i)=>{
+    /* Pausa pranzo */
+    if(slot==='14:30'){
+      const br=tbody.insertRow();
+      br.className='breakRow';
+      const td=br.insertCell();
+      td.colSpan=3;
+      td.textContent='☕  Pausa pranzo  13:30 – 14:30';
+    }
+
+    const fab=day.find(a=>a.time===slot&&a.barber==='fabrizio')||null;
+    const gia=day.find(a=>a.time===slot&&a.barber==='gianluca')||null;
+
+    const tr=tbody.insertRow();
+    if(i%2===0) tr.className='rowEven';
+
+    /* Fabrizio */
+    const tdF=tr.insertCell();
+    tdF.className='tdFab';
+    if(fab){
+      tdF.innerHTML='<div class="apptCard apptFab">'+esc(fab.name)+(fab.note?'<span class="apptNote">'+esc(fab.note)+'</span>':'')+'</div>';
+      tdF.onclick=()=>openEdit(fab);
+    } else {
+      tdF.innerHTML='<div class="emptyCell">+</div>';
+      tdF.onclick=()=>openNew(slot,'fabrizio');
+    }
+
+    /* Ora */
+    const tdT=tr.insertCell();
+    tdT.className='tdTime';
+    tdT.innerHTML='<b>'+slot+'</b>';
+
+    /* Gianluca */
+    const tdG=tr.insertCell();
+    tdG.className='tdGia';
+    if(gia){
+      tdG.innerHTML='<div class="apptCard apptGia">'+esc(gia.name)+(gia.note?'<span class="apptNote">'+esc(gia.note)+'</span>':'')+'</div>';
+      tdG.onclick=()=>openEdit(gia);
+    } else {
+      tdG.innerHTML='<div class="emptyCell">+</div>';
+      tdG.onclick=()=>openNew(slot,'gianluca');
+    }
+  });
+}
+
+function renderAll(){ renderWeek(); renderTable(); }
+
+/* ── MODAL ── */
+function buildSlotSelect(sel){
+  const el=document.getElementById('fTime');
+  el.innerHTML='';
+  SLOTS.forEach(s=>{ const o=new Option(s,s); if(s===sel)o.selected=true; el.appendChild(o); });
+}
+
+function selectBarber(id){
+  currentBarber=id;
+  document.getElementById('btnFab').classList.toggle('active',id==='fabrizio');
+  document.getElementById('btnGia').classList.toggle('active',id==='gianluca');
+}
+
+function openNew(slot,barber){
+  editingId=null;
+  document.getElementById('modalTitle').textContent='Nuovo Appuntamento';
+  document.getElementById('fName').value='';
+  document.getElementById('fNote').value='';
+  document.getElementById('fDate').value=selectedDate;
+  buildSlotSelect(slot);
+  selectBarber(barber);
+  document.getElementById('delBtn').style.display='none';
+  document.querySelector('.saveBtn').textContent='Salva';
+  document.getElementById('overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('fName').focus(),200);
+}
+
+function openEdit(appt){
+  editingId=appt.id;
+  document.getElementById('modalTitle').textContent='Modifica Appuntamento';
+  document.getElementById('fName').value=appt.name;
+  document.getElementById('fNote').value=appt.note||'';
+  document.getElementById('fDate').value=appt.date;
+  buildSlotSelect(appt.time);
+  selectBarber(appt.barber);
+  document.getElementById('delBtn').style.display='';
+  document.querySelector('.saveBtn').textContent='Aggiorna';
+  document.getElementById('overlay').classList.add('open');
+}
+
+function closeModal(){ document.getElementById('overlay').classList.remove('open'); }
+
+function saveAppt(){
+  const name=document.getElementById('fName').value.trim();
+  if(!name){ showToast('⚠️ Inserisci il nome del cliente',true); return; }
+  const date=document.getElementById('fDate').value;
+  const time=document.getElementById('fTime').value;
+  const note=document.getElementById('fNote').value.trim();
+  const barber=currentBarber;
+  if(!date){ showToast('⚠️ Seleziona una data',true); return; }
+  if(!appts[date]) appts[date]=[];
+  const conflict=appts[date].find(a=>a.time===time&&a.barber===barber&&a.id!==editingId);
+  if(conflict){ showToast('⚠️ Slot già occupato!',true); return; }
+  if(editingId){
+    // rimuovi vecchio (potrebbe essere su data diversa)
+    for(const k in appts){
+      appts[k]=appts[k].filter(a=>a.id!==editingId);
+      if(!appts[k].length) delete appts[k];
+    }
+    if(!appts[date]) appts[date]=[];
+  }
+  appts[date].push({ id: editingId||String(Date.now()), name, note, date, time, barber });
+  saveData(appts);
+  closeModal();
+  renderAll();
+  showToast(editingId?'✓ Aggiornato':'✓ Salvato');
+}
+
+function deleteAppt(){
+  if(!editingId) return;
+  if(!confirm('Eliminare questo appuntamento?')) return;
+  for(const k in appts){
+    appts[k]=appts[k].filter(a=>a.id!==editingId);
+    if(!appts[k].length) delete appts[k];
+  }
+  saveData(appts);
+  closeModal();
+  renderAll();
+  showToast('Eliminato');
+}
+
+/* ── TOAST ── */
+let _tt;
+function showToast(msg,err){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='show'+(err?' err':'');
+  clearTimeout(_tt); _tt=setTimeout(()=>t.className='',2400);
+}
+
+/* ── KEYBOARD ── */
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') closeModal();
+  if(e.key==='Enter'&&document.getElementById('overlay').classList.contains('open')) saveAppt();
+});
+
+/* ── START ── */
+renderAll();
+</script>
+</body>
+</html>
